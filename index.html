@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Menampilkan data posts dari JSONPlaceholder API dengan fitur CRUD (GET, PUT, PATCH, DELETE).">
+  <title>API Posts - JSONPlaceholder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      color: #e0e0e0;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      font-size: 0.95rem;
+      color: #9ca3af;
+      letter-spacing: 0.02em;
+    }
+
+    .method-badges {
+      display: flex;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .method-badges span {
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .method-get { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+    .method-put { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .method-patch { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+    .method-delete { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+    /* Loading Spinner */
+    .loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      padding: 4rem 0;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid rgba(167, 139, 250, 0.2);
+      border-top-color: #a78bfa;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader span {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    /* Error */
+    .error-msg {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 12px;
+      color: #fca5a5;
+      font-size: 0.95rem;
+    }
+
+    /* Post Cards */
+    .posts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .post-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 1.5rem 1.8rem;
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.5s ease forwards;
+    }
+
+    .post-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(167, 139, 250, 0.15);
+      border-color: rgba(167, 139, 250, 0.3);
+    }
+
+    .post-card.deleted {
+      animation: fadeOutCard 0.4s ease forwards;
+    }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeOutCard {
+      to {
+        opacity: 0;
+        transform: translateX(60px) scale(0.95);
+        height: 0;
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
+      }
+    }
+
+    .post-card .post-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .post-card .post-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #a78bfa, #60a5fa);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .post-card .post-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #f3f4f6;
+      margin-bottom: 0.6rem;
+      line-height: 1.45;
+      text-transform: capitalize;
+    }
+
+    .post-card .post-body {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      line-height: 1.7;
+    }
+
+    .post-card .post-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    .post-card .post-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.78rem;
+      color: #6b7280;
+    }
+
+    .post-card .post-meta .badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      background: rgba(96, 165, 250, 0.12);
+      color: #60a5fa;
+      font-weight: 500;
+    }
+
+    /* Action Buttons */
+    .post-actions {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .btn {
+      border: none;
+      cursor: pointer;
+      padding: 0.4rem 0.75rem;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: all 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      letter-spacing: 0.02em;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-put {
+      background: rgba(251, 191, 36, 0.12);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.2);
+    }
+
+    .btn-put:hover {
+      background: rgba(251, 191, 36, 0.25);
+      box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+    }
+
+    .btn-patch {
+      background: rgba(96, 165, 250, 0.12);
+      color: #60a5fa;
+      border: 1px solid rgba(96, 165, 250, 0.2);
+    }
+
+    .btn-patch:hover {
+      background: rgba(96, 165, 250, 0.25);
+      box-shadow: 0 0 12px rgba(96, 165, 250, 0.15);
+    }
+
+    .btn-delete {
+      background: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-delete:hover {
+      background: rgba(239, 68, 68, 0.25);
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+    }
+
+    /* Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      padding: 1rem;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: linear-gradient(145deg, #1e1b4b, #1a1a3e);
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      border-radius: 16px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 480px;
+      transform: translateY(20px) scale(0.96);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+      color: #f3f4f6;
+    }
+
+    .modal .modal-method {
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+    }
+
+    .modal .modal-method.put {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+    }
+
+    .modal .modal-method.patch {
+      background: rgba(96, 165, 250, 0.15);
+      color: #60a5fa;
+    }
+
+    .form-group {
+      margin-bottom: 1.2rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #9ca3af;
+      margin-bottom: 0.4rem;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.7rem 1rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: #f3f4f6;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: rgba(167, 139, 250, 0.5);
+      box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.6rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn-cancel {
+      background: rgba(255, 255, 255, 0.06);
+      color: #9ca3af;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #e0e0e0;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #a78bfa, #7c3aed);
+      color: #fff;
+      border: none;
+    }
+
+    .btn-submit:hover {
+      box-shadow: 0 4px 16px rgba(167, 139, 250, 0.35);
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .toast {
+      padding: 0.8rem 1.2rem;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      animation: toastIn 0.35s ease, toastOut 0.35s ease 2.8s forwards;
+      max-width: 340px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .toast.success {
+      background: rgba(52, 211, 153, 0.15);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: #34d399;
+    }
+
+    .toast.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    .toast.info {
+      background: rgba(96, 165, 250, 0.15);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      color: #60a5fa;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateX(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes toastOut {
+      to {
+        opacity: 0;
+        transform: translateX(40px);
+      }
+    }
+
+    /* Response Preview */
+    .response-preview {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.78rem;
+      font-family: 'Courier New', monospace;
+      color: #9ca3af;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .response-preview.visible {
+      display: block;
+      animation: fadeInUp 0.3s ease;
+    }
+
+    .response-preview .response-label {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .response-preview .response-label.status-ok { color: #34d399; }
+    .response-preview .response-label.status-err { color: #f87171; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      color: #6b7280;
+      font-size: 0.82rem;
+    }
+
+    footer a {
+      color: #a78bfa;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: #c4b5fd;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      header h1 {
+        font-size: 1.6rem;
+      }
+
+      .post-card {
+        padding: 1.2rem 1.3rem;
+      }
+
+      .post-card .post-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .modal {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>📝 API Posts</h1>
+      <p>Menampilkan 10 data dari JSONPlaceholder API</p>
+      <div class="method-badges">
+        <span class="method-get">GET</span>
+        <span class="method-put">PUT</span>
+        <span class="method-patch">PATCH</span>
+        <span class="method-delete">DELETE</span>
+      </div>
+    </header>
+
+    <main id="posts-container">
+      <!-- Content will be rendered by script.js -->
+    </main>
+
+    <footer>
+      <p>Data diambil dari <a href="https://jsonplaceholder.typicode.com/posts" target="_blank" rel="noopener">JSONPlaceholder</a></p>
+    </footer>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <h2 id="modal-title">Edit Post</h2>
+      <span class="modal-method" id="modal-method-badge">PUT</span>
+
+      <form id="edit-form">
+        <input type="hidden" id="edit-post-id">
+        <input type="hidden" id="edit-method">
+
+        <div class="form-group">
+          <label for="edit-title">Title</label>
+          <input type="text" id="edit-title" placeholder="Masukkan judul post..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-body">Body</label>
+          <textarea id="edit-body" placeholder="Masukkan isi post..." required></textarea>
+        </div>
+
+        <div id="response-preview" class="response-preview"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" id="btn-modal-cancel">Batal</button>
+          <button type="submit" class="btn btn-submit" id="btn-modal-submit">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
